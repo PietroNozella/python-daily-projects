@@ -1,0 +1,231 @@
+import os
+import shutil
+from pathlib import Path
+from typing import Dict, List
+from datetime import datetime
+
+class FileOrganizer:
+    """
+    Classe para organizar arquivos por tipo/extensão
+    """
+    
+    def __init__(self, base_path: str = "."):
+        self.base_path = Path(base_path)
+        
+        # Mapeamento de extensões para pastas
+        self.file_types = {
+            'Imagens': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp'],
+            'Documentos': ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt'],
+            'Planilhas': ['.xls', '.xlsx', '.csv', '.ods'],
+            'Apresentações': ['.ppt', '.pptx', '.odp'],
+            'Videos': ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm'],
+            'Audio': ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma'],
+            'Comprimidos': ['.zip', '.rar', '.7z', '.tar', '.gz'],
+            'Executáveis': ['.exe', '.msi', '.deb', '.dmg', '.pkg'],
+            'Código': ['.py', '.js', '.html', '.css', '.java', '.cpp', '.c', '.php']
+        }
+    
+    def scan_directory(self, path: str = None) -> Dict[str, List[str]]:
+        """
+        Escaneia um diretório e lista arquivos por tipo
+        
+        Args:
+            path (str): Caminho para escanear (padrão: diretório atual)
+        
+        Returns:
+            Dict: Arquivos organizados por categoria
+        """
+        scan_path = Path(path) if path else self.base_path
+        
+        if not scan_path.exists():
+            raise FileNotFoundError(f"Diretório não encontrado: {scan_path}")
+        
+        files_by_type = {}
+        unorganized_files = []
+        
+        # Lista todos os arquivos no diretório
+        for file_path in scan_path.iterdir():
+            if file_path.is_file():
+                extension = file_path.suffix.lower()
+                category = self._get_file_category(extension)
+                
+                if category:
+                    if category not in files_by_type:
+                        files_by_type[category] = []
+                    files_by_type[category].append(str(file_path.name))
+                else:
+                    unorganized_files.append(str(file_path.name))
+        
+        if unorganized_files:
+            files_by_type['Outros'] = unorganized_files
+        
+        return files_by_type
+    
+    def _get_file_category(self, extension: str) -> str:
+        """
+        Determina a categoria de um arquivo baseado na extensão
+        
+        Args:
+            extension (str): Extensão do arquivo
+        
+        Returns:
+            str: Categoria do arquivo ou None
+        """
+        for category, extensions in self.file_types.items():
+            if extension in extensions:
+                return category
+        return None
+    
+    def organize_files(self, source_path: str = None, create_folders: bool = True) -> Dict[str, int]:
+        """
+        Organiza arquivos movendo-os para pastas por categoria
+        
+        Args:
+            source_path (str): Diretório fonte
+            create_folders (bool): Criar pastas se não existirem
+        
+        Returns:
+            Dict: Relatório de arquivos movidos
+        """
+        source = Path(source_path) if source_path else self.base_path
+        
+        if not source.exists():
+            raise FileNotFoundError(f"Diretório não encontrado: {source}")
+        
+        moved_files = {}
+        
+        # Escaneia arquivos
+        files_by_type = self.scan_directory(str(source))
+        
+        for category, files in files_by_type.items():
+            if not files:
+                continue
+                
+            # Cria pasta da categoria
+            category_folder = source / category
+            if create_folders and not category_folder.exists():
+                category_folder.mkdir()
+                print(f"📁 Pasta criada: {category}")
+            
+            moved_count = 0
+            
+            # Move arquivos para a pasta
+            for filename in files:
+                source_file = source / filename
+                destination_file = category_folder / filename
+                
+                try:
+                    # Verifica se arquivo já existe no destino
+                    if destination_file.exists():
+                        # Adiciona timestamp para evitar conflitos
+                        timestamp = datetime.now().strftime("_%Y%m%d_%H%M%S")
+                        name_parts = filename.rsplit('.', 1)
+                        if len(name_parts) == 2:
+                            new_name = f"{name_parts[0]}{timestamp}.{name_parts[1]}"
+                        else:
+                            new_name = f"{filename}{timestamp}"
+                        destination_file = category_folder / new_name
+                    
+                    shutil.move(str(source_file), str(destination_file))
+                    moved_count += 1
+                    print(f"✅ Movido: {filename} → {category}/")
+                    
+                except Exception as e:
+                    print(f"❌ Erro ao mover {filename}: {e}")
+            
+            moved_files[category] = moved_count
+        
+        return moved_files
+    
+    def create_backup_list(self, path: str = None) -> str:
+        """
+        Cria uma lista de backup dos arquivos no diretório
+        
+        Args:
+            path (str): Diretório para fazer backup da lista
+        
+        Returns:
+            str: Nome do arquivo de backup criado
+        """
+        scan_path = Path(path) if path else self.base_path
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"backup_list_{timestamp}.txt"
+        backup_path = scan_path / backup_filename
+        
+        files_by_type = self.scan_directory(str(scan_path))
+        
+        with open(backup_path, 'w', encoding='utf-8') as f:
+            f.write(f"LISTA DE ARQUIVOS - {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write(f"Diretório: {scan_path.absolute()}\n")
+            f.write("=" * 50 + "\n\n")
+            
+            total_files = 0
+            for category, files in files_by_type.items():
+                f.write(f"{category.upper()} ({len(files)} arquivos):\n")
+                for file in sorted(files):
+                    f.write(f"  - {file}\n")
+                f.write("\n")
+                total_files += len(files)
+            
+            f.write(f"TOTAL: {total_files} arquivos\n")
+        
+        return backup_filename
+
+def main():
+    """Função principal para demonstrar o uso da classe"""
+    organizer = FileOrganizer()
+    
+    print("=== ORGANIZADOR DE ARQUIVOS ===\n")
+    
+    # Pergunta qual diretório usar
+    path = input("Digite o caminho do diretório (Enter para usar atual): ").strip()
+    if not path:
+        path = "."
+    
+    try:
+        # Escaneia o diretório
+        print(f"\n📂 Escaneando: {Path(path).absolute()}")
+        files_by_type = organizer.scan_directory(path)
+        
+        if not files_by_type:
+            print("❌ Nenhum arquivo encontrado!")
+            return
+        
+        # Mostra arquivos encontrados
+        print("\n📋 Arquivos encontrados:")
+        total_files = 0
+        for category, files in files_by_type.items():
+            print(f"\n{category} ({len(files)} arquivos):")
+            for file in files[:5]:  # Mostra apenas os primeiros 5
+                print(f"  • {file}")
+            if len(files) > 5:
+                print(f"  ... e mais {len(files) - 5} arquivos")
+            total_files += len(files)
+        
+        print(f"\n📊 Total: {total_files} arquivos")
+        
+        # Pergunta se quer organizar
+        choice = input("\nDeseja organizar os arquivos? (s/n): ").lower()
+        
+        if choice == 's':
+            # Cria backup da lista antes de organizar
+            backup_file = organizer.create_backup_list(path)
+            print(f"💾 Lista de backup criada: {backup_file}")
+            
+            # Organiza arquivos
+            print("\n🔄 Organizando arquivos...")
+            moved_files = organizer.organize_files(path)
+            
+            print("\n✅ Organização concluída!")
+            print("\n📈 Relatório:")
+            for category, count in moved_files.items():
+                print(f"  {category}: {count} arquivos movidos")
+        else:
+            print("👍 Organização cancelada.")
+    
+    except Exception as e:
+        print(f"❌ Erro: {e}")
+
+if __name__ == "__main__":
+    main()
