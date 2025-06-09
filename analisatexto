@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Analisador de Texto Simples
+Um programa para analisar estatísticas básicas de texto
+"""
+
+import re
+from collections import Counter
+import string
+
+class AnalisadorTexto:
+    def __init__(self, texto=""):
+        self.texto = texto.lower()
+        self.palavras = self._extrair_palavras()
+    
+    def _extrair_palavras(self):
+        """Extrai palavras do texto, removendo pontuação"""
+        # Remove pontuação e divide em palavras
+        texto_limpo = re.sub(r'[^\w\s]', '', self.texto)
+        return texto_limpo.split()
+    
+    def contar_caracteres(self, incluir_espacos=True):
+        """Conta o número total de caracteres"""
+        if incluir_espacos:
+            return len(self.texto)
+        return len(self.texto.replace(' ', ''))
+    
+    def contar_palavras(self):
+        """Conta o número de palavras"""
+        return len(self.palavras)
+    
+    def contar_frases(self):
+        """Conta o número de frases (aproximado)"""
+        return len(re.findall(r'[.!?]+', self.texto))
+    
+    def palavras_mais_comuns(self, n=5):
+        """Retorna as N palavras mais comuns"""
+        contador = Counter(self.palavras)
+        return contador.most_common(n)
+    
+    def palavra_mais_longa(self):
+        """Encontra a palavra mais longa"""
+        if not self.palavras:
+            return ""
+        return max(self.palavras, key=len)
+    
+    def contar_vogais_consoantes(self):
+        """Conta vogais e consoantes"""
+        vogais = "aeiou"
+        contador_vogais = 0
+        contador_consoantes = 0
+        
+        for char in self.texto:
+            if char.isalpha():
+                if char in vogais:
+                    contador_vogais += 1
+                else:
+                    contador_consoantes += 1
+        
+        return contador_vogais, contador_consoantes
+    
+    def densidade_palavras_unicas(self):
+        """Calcula a densidade de palavras únicas"""
+        if not self.palavras:
+            return 0
+        palavras_unicas = len(set(self.palavras))
+        return round(palavras_unicas / len(self.palavras) * 100, 2)
+    
+    def relatorio_completo(self):
+        """Gera um relatório completo da análise"""
+        vogais, consoantes = self.contar_vogais_consoantes()
+        
+        relatorio = f"""
+=== RELATÓRIO DE ANÁLISE DE TEXTO ===
+
+📊 Estatísticas Básicas:
+- Caracteres (com espaços): {self.contar_caracteres(True)}
+- Caracteres (sem espaços): {self.contar_caracteres(False)}
+- Palavras: {self.contar_palavras()}
+- Frases: {self.contar_frases()}
+
+🔤 Análise de Letras:
+- Vogais: {vogais}
+- Consoantes: {consoantes}
+
+📝 Análise de Palavras:
+- Palavra mais longa: "{self.palavra_mais_longa()}"
+- Densidade de palavras únicas: {self.densidade_palavras_unicas()}%
+
+🏆 Top 5 Palavras Mais Frequentes:
+"""
+        for i, (palavra, freq) in enumerate(self.palavras_mais_comuns(), 1):
+            relatorio += f"  {i}. '{palavra}' - {freq} vezes\n"
+        
+        return relatorio
+
+def main():
+    """Função principal do programa"""
+    print("🔍 Analisador de Texto Simples")
+    print("=" * 35)
+    
+    # Texto de exemplo
+    texto_exemplo = """
+    Python é uma linguagem de programação de alto nível, interpretada e de propósito geral.
+    Sua filosofia de design enfatiza a legibilidade do código com o uso de indentação significativa.
+    Python é dinamicamente tipado e coletado como lixo. Suporta múltiplos paradigmas de programação,
+    incluindo programação estruturada, orientada a objetos e funcional.
+    """
+    
+    # Permite ao usuário inserir texto personalizado
+    escolha = input("Deseja usar:\n1 - Texto de exemplo\n2 - Seu próprio texto\nEscolha (1 ou 2): ")
+    
+    if escolha == "2":
+        print("\nDigite seu texto (pressione Enter duas vezes para finalizar):")
+        linhas = []
+        while True:
+            linha = input()
+            if linha == "":
+                break
+            linhas.append(linha)
+        texto = "\n".join(linhas)
+    else:
+        texto = texto_exemplo
+        print(f"\nUsando texto de exemplo:\n{texto}")
+    
+    # Criando o analisador e executando análise
+    analisador = AnalisadorTexto(texto)
+    print(analisador.relatorio_completo())
+    
+    # Análises interativas adicionais
+    while True:
+        print("\n" + "="*50)
+        print("Opções adicionais:")
+        print("1 - Buscar palavra específica")
+        print("2 - Analisar novo texto")
+        print("3 - Sair")
+        
+        opcao = input("Escolha uma opção: ")
+        
+        if opcao == "1":
+            palavra = input("Digite a palavra para buscar: ").lower()
+            freq = analisador.palavras.count(palavra)
+            print(f"A palavra '{palavra}' aparece {freq} vez(es) no texto.")
+        
+        elif opcao == "2":
+            main()  # Reinicia o programa
+            break
+        
+        elif opcao == "3":
+            print("Obrigado por usar o Analisador de Texto! 👋")
+            break
+        
+        else:
+            print("Opção inválida! Tente novamente.")
+
+if __name__ == "__main__":
+    main()
